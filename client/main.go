@@ -54,6 +54,74 @@ func (w *resultWaiter) deliver(requestID string, res *pb.WalletResult) {
 	}
 }
 
+// walletClient связывает всё, что нужно сценариям, чтобы отправить async
+// запрос и дождаться его результата из wallet.results.
+type walletClient struct {
+	rpc    pb.WalletServiceClient
+	tracer trace.Tracer
+	waiter *resultWaiter
+}
+
+func (c *walletClient) createWallet(ctx context.Context, ownerID, currency string) (*pb.CreateWalletResult, error) {
+	reqID := uuid.NewString()
+	reqCtx, span := c.tracer.Start(ctx, "client.create_wallet",
+		trace.WithAttributes(attribute.String("wallet.request_id", reqID), attribute.String("wallet.owner_id", ownerID)))
+	done := c.waiter.register(reqID)
+
+	accepted, err := c.rpc.CreateWalletAsync(reqCtx, &pb.CreateWalletRequest{RequestId: reqID, OwnerId: ownerID, Currency: currency})
+	if err != nil {
+		span.End()
+		return nil, fmt.Errorf("CreateWalletAsync: %w", err)
+	}
+	fmt.Printf("accepted: request_id=%s status=%s\n", accepted.RequestId, accepted.Status)
+
+	select {
+	case res := <-done:
+		span.End()
+		switch body := res.Body.(type) {
+		case *pb.WalletResult_CreateWallet:
+			return body.CreateWallet, nil
+		case *pb.WalletResult_Error:
+			return nil, fmt.Errorf("create wallet error: %s", body.Error.Message)
+		default:
+			return nil, fmt.Errorf("unexpected result type: %T", body)
+		}
+	case <-time.After(15 * time.Second):
+		span.End()
+		return nil, fmt.Errorf("timed out waiting for create result")
+	}
+}
+
+func (c *walletClient) getWallet(ctx context.Context, walletID string) (*pb.GetWalletResult, error) {
+	reqID := uuid.NewString()
+	reqCtx, span := c.tracer.Start(ctx, "client.get_wallet",
+		trace.WithAttributes(attribute.String("wallet.request_id", reqID), attribute.String("wallet.id", walletID)))
+	done := c.waiter.register(reqID)
+
+	accepted, err := c.rpc.GetWalletAsync(reqCtx, &pb.GetWalletRequest{RequestId: reqID, WalletId: walletID})
+	if err != nil {
+		span.End()
+		return nil, fmt.Errorf("GetWalletAsync: %w", err)
+	}
+	fmt.Printf("accepted: request_id=%s status=%s\n", accepted.RequestId, accepted.Status)
+
+	select {
+	case res := <-done:
+		span.End()
+		switch body := res.Body.(type) {
+		case *pb.WalletResult_GetWallet:
+			return body.GetWallet, nil
+		case *pb.WalletResult_Error:
+			return nil, fmt.Errorf("get wallet error: %s", body.Error.Message)
+		default:
+			return nil, fmt.Errorf("unexpected result type: %T", body)
+		}
+	case <-time.After(15 * time.Second):
+		span.End()
+		return nil, fmt.Errorf("timed out waiting for get result")
+	}
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -73,15 +141,13 @@ func main() {
 	}
 	defer conn.Close()
 
-	client := pb.NewWalletServiceClient(conn)
-	tracer := otel.Tracer("wallet-client")
-
 	// Свежая уникальная consumer group на каждый запуск + OffsetOldest
 	// гарантируют, что клиент увидит результат, даже если worker успел его
 	// опубликовать до того, как консьюмер клиента поднялся.
 	waiter := newResultWaiter()
 	resultsGroup := fmt.Sprintf("wallet-client-%d", time.Now().UnixNano())
 	resultsBroker := async.NewKafkaBrokerWithGroup(os.Getenv("KAFKA_BROKER"), resultsGroup)
+	tracer := otel.Tracer("wallet-client")
 
 	consumeCtx, stopConsuming := context.WithCancel(ctx)
 	defer stopConsuming()
@@ -110,77 +176,32 @@ func main() {
 		_ = resultsBroker.Close()
 	}()
 
-	// ── Сценарий 1: создать кошелёк асинхронно, дождаться результата ────────
-	fmt.Println("=== Scenario 1: Create wallet (async) ===")
+	client := &walletClient{rpc: pb.NewWalletServiceClient(conn), tracer: tracer, waiter: waiter}
 
-	createReqID := uuid.NewString()
-	createCtx, createSpan := tracer.Start(ctx, "client.create_wallet",
-		trace.WithAttributes(attribute.String("wallet.request_id", createReqID)))
-	createDone := waiter.register(createReqID)
+	owners := []string{"alice", "bob", "carol"}
 
-	accepted, err := client.CreateWalletAsync(createCtx, &pb.CreateWalletRequest{
-		RequestId: createReqID,
-		OwnerId:   "alice",
-		Currency:  "USD",
-	})
-	if err != nil {
-		createSpan.End()
-		log.Fatalf("CreateWalletAsync: %v", err)
-	}
-	fmt.Printf("accepted: request_id=%s status=%s\n", accepted.RequestId, accepted.Status)
+	// ── Сценарий 1: создать несколько кошельков асинхронно ──────────────────
+	fmt.Println("=== Scenario 1: Create wallets (async) ===")
 
-	var walletID string
-	select {
-	case res := <-createDone:
-		createSpan.End()
-		switch body := res.Body.(type) {
-		case *pb.WalletResult_CreateWallet:
-			walletID = body.CreateWallet.WalletId
-			fmt.Printf("wallet created: id=%s balance=%.2f %s\n",
-				body.CreateWallet.WalletId, body.CreateWallet.Balance, body.CreateWallet.Currency)
-		case *pb.WalletResult_Error:
-			log.Fatalf("create wallet error: %s", body.Error.Message)
-		default:
-			log.Fatalf("unexpected result type: %T", body)
+	walletIDs := make([]string, 0, len(owners))
+	for _, owner := range owners {
+		w, err := client.createWallet(ctx, owner, "USD")
+		if err != nil {
+			log.Fatalf("create wallet for %s: %v", owner, err)
 		}
-	case <-time.After(15 * time.Second):
-		createSpan.End()
-		log.Fatal("timed out waiting for create result")
+		fmt.Printf("wallet created: id=%s balance=%.2f %s\n", w.WalletId, w.Balance, w.Currency)
+		walletIDs = append(walletIDs, w.WalletId)
 	}
 
-	// ── Сценарий 2: проверить состояние кошелька асинхронно ─────────────────
+	// ── Сценарий 2: проверить состояние каждого кошелька асинхронно ─────────
 	fmt.Println("\n=== Scenario 2: Get wallet state (async) ===")
 
-	getReqID := uuid.NewString()
-	getCtx, getSpan := tracer.Start(ctx, "client.get_wallet",
-		trace.WithAttributes(attribute.String("wallet.request_id", getReqID)))
-	getDone := waiter.register(getReqID)
-
-	getAccepted, err := client.GetWalletAsync(getCtx, &pb.GetWalletRequest{
-		RequestId: getReqID,
-		WalletId:  walletID,
-	})
-	if err != nil {
-		getSpan.End()
-		log.Fatalf("GetWalletAsync: %v", err)
-	}
-	fmt.Printf("accepted: request_id=%s status=%s\n", getAccepted.RequestId, getAccepted.Status)
-
-	select {
-	case res := <-getDone:
-		getSpan.End()
-		switch body := res.Body.(type) {
-		case *pb.WalletResult_GetWallet:
-			fmt.Printf("wallet state: id=%s owner=%s balance=%.2f %s\n",
-				body.GetWallet.WalletId, body.GetWallet.OwnerId, body.GetWallet.Balance, body.GetWallet.Currency)
-		case *pb.WalletResult_Error:
-			log.Fatalf("get wallet error: %s", body.Error.Message)
-		default:
-			log.Fatalf("unexpected result type: %T", body)
+	for _, id := range walletIDs {
+		w, err := client.getWallet(ctx, id)
+		if err != nil {
+			log.Fatalf("get wallet %s: %v", id, err)
 		}
-	case <-time.After(15 * time.Second):
-		getSpan.End()
-		log.Fatal("timed out waiting for get result")
+		fmt.Printf("wallet state: id=%s owner=%s balance=%.2f %s\n", w.WalletId, w.OwnerId, w.Balance, w.Currency)
 	}
 
 	time.Sleep(3 * time.Second)
