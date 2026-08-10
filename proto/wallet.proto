@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package wallet;
+option go_package = "wallet-service/proto";
+
+// Публичный API — только асинхронный. Каждый rpc синтаксически валидирует
+// вход, публикует команду в Kafka (wallet.commands) и сразу отвечает
+// AcceptedResponse. Итоговый результат приходит отдельным сообщением в
+// wallet.results — клиент подписывается на топик и сопоставляет ответ по
+// request_id (см. proto/messages.proto).
+service WalletService {
+  rpc CreateWalletAsync (CreateWalletRequest) returns (CreateWalletAcceptedResponse);
+  rpc GetWalletAsync    (GetWalletRequest)    returns (GetWalletAcceptedResponse);
+  rpc TransferAsync     (TransferRequest)     returns (TransferAcceptedResponse);
+}
+
+message CreateWalletRequest {
+  string owner_id   = 1;
+  string currency   = 2;
+  string request_id = 3;
+}
+
+message CreateWalletAcceptedResponse {
+  string request_id = 1;
+  string status      = 2;
+}
+
+message GetWalletRequest {
+  string wallet_id  = 1;
+  string request_id = 2;
+}
+
+message GetWalletAcceptedResponse {
+  string request_id = 1;
+  string status      = 2;
+}
+
+message TransferRequest {
+  string from_wallet_id = 1;
+  string to_wallet_id   = 2;
+  double amount         = 3;
+  string request_id     = 4;
+}
+
+message TransferAcceptedResponse {
+  string request_id = 1;
+  string status      = 2;
+}

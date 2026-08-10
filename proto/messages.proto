@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package wallet;
+option go_package = "wallet-service/proto";
+
+// WalletCommand — сообщение в топике wallet.commands.
+// Публикуется proxy после синтаксической валидации, читается worker'ом.
+message WalletCommand {
+  string request_id = 1;
+  oneof body {
+    CreateWalletCommand create_wallet = 2;
+    TransferCommand transfer = 3;
+    GetWalletCommand get_wallet = 4;
+  }
+}
+
+message CreateWalletCommand {
+  string owner_id = 1;
+  string currency = 2;
+}
+
+message TransferCommand {
+  string from_wallet_id = 1;
+  string to_wallet_id   = 2;
+  double amount         = 3;
+}
+
+message GetWalletCommand {
+  string wallet_id = 1;
+}
+
+// WalletResult — сообщение в топике wallet.results.
+// Публикуется worker'ом после обработки команды, читается напрямую
+// клиентом (в 1 итерации — тем же процессом, что отправил запрос).
+message WalletResult {
+  string request_id = 1;
+  oneof body {
+    CreateWalletResult create_wallet = 2;
+    TransferResult      transfer      = 3;
+    WalletResultError   error         = 4;
+    GetWalletResult      get_wallet    = 5;
+  }
+}
+
+message CreateWalletResult {
+  string wallet_id = 1;
+  double balance    = 2;
+  string currency   = 3;
+}
+
+message TransferResult {
+  double from_balance = 1;
+  double to_balance   = 2;
+}
+
+message GetWalletResult {
+  string wallet_id = 1;
+  string owner_id  = 2;
+  double balance   = 3;
+  string currency  = 4;
+}
+
+message WalletResultError {
+  string message = 1;
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "Bash(curl -s \"http://localhost:16686/api/traces?service=wallet-client&limit=5\")",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

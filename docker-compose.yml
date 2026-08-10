@@ -1,0 +1,113 @@
+services:
+
+  zookeeper:
+    container_name: zookeeper
+    image: confluentinc/cp-zookeeper:7.6.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - wallet-net
+
+  kafka:
+    container_name: kafka
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      # Однобро́керный dev-стенд: не ждать других участников группы перед
+      # первым rebalance. По умолчанию 3000ms — именно эта задержка была
+      # видна в Jaeger как "аномально долгий" первый async-вызов клиента,
+      # который каждый раз поднимает новую consumer group.
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9092:9092"
+    networks:
+      - wallet-net
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:1.52
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # UI → http://localhost:16686
+    networks:
+      - wallet-net
+
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./collector/config.yaml:/etc/otel/config.yaml
+    depends_on:
+      - jaeger
+    networks:
+      - wallet-net
+
+  wallet-service:
+    container_name: wallet-service
+    image: golang:1.26-alpine
+    volumes:
+      - ./bin/wallet-server:/app/wallet-server
+    command: ["/app/wallet-server"]
+    environment:
+      - OTEL_SERVICE_NAME=wallet-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - GRPC_ADDR=:50051
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - otel-collector
+      - kafka
+    networks:
+      - wallet-net
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo '' | nc -w1 localhost 50051"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  wallet-worker:
+    container_name: wallet-worker
+    image: golang:1.26-alpine
+    volumes:
+      - ./bin/wallet-worker:/app/wallet-worker
+    command: ["/app/wallet-worker"]
+    environment:
+      - OTEL_SERVICE_NAME=wallet-worker
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - otel-collector
+      - kafka
+    networks:
+      - wallet-net
+
+  wallet-client:
+    container_name: wallet-client
+    image: alpine:latest  # Or any base OS matching your binary's target
+    volumes:
+      - ./bin/wallet-client:/app/wallet-client  # Mount as read-only
+    command: ["./wallet-client"]  # Debug: list the file to check permissions
+    working_dir: /app
+    environment:
+      - OTEL_SERVICE_NAME=wallet-client
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+    depends_on:
+      wallet-service:
+        condition: service_healthy
+    networks:
+      - wallet-net
+
+networks:
+  wallet-net:
+    driver: bridge

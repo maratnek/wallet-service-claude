@@ -1,0 +1,3 @@
+bin/wallet-client
+bin/wallet-server
+coverage.out
