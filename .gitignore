@@ -1,4 +1,2 @@
-bin/wallet-client
-bin/wallet-server
+bin
 coverage.out
-bin/wallet-worker

@@ -49,6 +49,7 @@ func InitTracer(ctx context.Context, cfg Config) (func(), error) {
 
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
+		sdktrace.WithIDGenerator(requestIDGenerator{}),
 		sdktrace.WithSampler(
 			sdktrace.ParentBased(
 				sdktrace.TraceIDRatioBased(cfg.SampleRate),

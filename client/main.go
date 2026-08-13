@@ -63,8 +63,10 @@ type walletClient struct {
 }
 
 func (c *walletClient) createWallet(ctx context.Context, ownerID, currency string) (*pb.CreateWalletResult, error) {
-	reqID := uuid.NewString()
-	reqCtx, span := c.tracer.Start(ctx, "client.create_wallet",
+	id := uuid.New()
+	reqID := id.String()
+	seedCtx := telemetry.WithTraceID(ctx, trace.TraceID(id))
+	reqCtx, span := c.tracer.Start(seedCtx, "client.create_wallet",
 		trace.WithAttributes(attribute.String("wallet.request_id", reqID), attribute.String("wallet.owner_id", ownerID)))
 	done := c.waiter.register(reqID)
 
@@ -93,8 +95,10 @@ func (c *walletClient) createWallet(ctx context.Context, ownerID, currency strin
 }
 
 func (c *walletClient) getWallet(ctx context.Context, walletID string) (*pb.GetWalletResult, error) {
-	reqID := uuid.NewString()
-	reqCtx, span := c.tracer.Start(ctx, "client.get_wallet",
+	id := uuid.New()
+	reqID := id.String()
+	seedCtx := telemetry.WithTraceID(ctx, trace.TraceID(id))
+	reqCtx, span := c.tracer.Start(seedCtx, "client.get_wallet",
 		trace.WithAttributes(attribute.String("wallet.request_id", reqID), attribute.String("wallet.id", walletID)))
 	done := c.waiter.register(reqID)
 
