@@ -1,3 +1,5 @@
 bin
 coverage.out
 tmp/
+proto/wallet.pb.go
+proto/messages.pb.go
