@@ -3,3 +3,4 @@ coverage.out
 tmp/
 proto/wallet.pb.go
 proto/messages.pb.go
+proto/wallet_grpc.pb.go

@@ -145,21 +145,3 @@ func (h saramaConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSessio
 	}
 	return nil
 }
-
-func (b *KafkaBroker) TopicExists(ctx context.Context, topic string) bool {
-	conn, err := sarama.NewClient(strings.Split(b.addr, ","), sarama.NewConfig())
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
-	topics, err := conn.Topics()
-	if err != nil {
-		return false
-	}
-	for _, t := range topics {
-		if strings.EqualFold(t, topic) {
-			return true
-		}
-	}
-	return false
-}
