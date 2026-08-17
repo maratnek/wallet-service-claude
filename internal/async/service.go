@@ -48,37 +48,37 @@ func NewAsyncWalletService(broker Broker) *AsyncWalletService {
 	return &AsyncWalletService{broker: broker, tracer: otel.Tracer("wallet-service")}
 }
 
-func (s *AsyncWalletService) CreateWalletAsync(ctx context.Context, requestID string, in wallet.CreateWalletInput) error {
+func (s *AsyncWalletService) CreateWalletAsync(ctx context.Context, msgUUID string, in wallet.CreateWalletInput) error {
 	cmd := &pb.WalletCommand{
-		RequestId: requestID,
+		MsgUuid: msgUUID,
 		Body: &pb.WalletCommand_CreateWallet{
 			CreateWallet: &pb.CreateWalletCommand{OwnerId: in.OwnerID, Currency: in.Currency},
 		},
 	}
-	return s.publishCommand(ctx, requestID, cmd)
+	return s.publishCommand(ctx, msgUUID, cmd)
 }
 
-func (s *AsyncWalletService) GetWalletAsync(ctx context.Context, requestID string, walletID string) error {
+func (s *AsyncWalletService) GetWalletAsync(ctx context.Context, msgUUID string, walletID string) error {
 	cmd := &pb.WalletCommand{
-		RequestId: requestID,
+		MsgUuid: msgUUID,
 		Body: &pb.WalletCommand_GetWallet{
 			GetWallet: &pb.GetWalletCommand{WalletId: walletID},
 		},
 	}
-	return s.publishCommand(ctx, requestID, cmd)
+	return s.publishCommand(ctx, msgUUID, cmd)
 }
 
-func (s *AsyncWalletService) TransferAsync(ctx context.Context, requestID string, in wallet.TransferInput) error {
+func (s *AsyncWalletService) TransferAsync(ctx context.Context, msgUUID string, in wallet.TransferInput) error {
 	cmd := &pb.WalletCommand{
-		RequestId: requestID,
+		MsgUuid: msgUUID,
 		Body: &pb.WalletCommand_Transfer{
 			Transfer: &pb.TransferCommand{FromWalletId: in.FromID, ToWalletId: in.ToID, Amount: in.Amount},
 		},
 	}
-	return s.publishCommand(ctx, requestID, cmd)
+	return s.publishCommand(ctx, msgUUID, cmd)
 }
 
-func (s *AsyncWalletService) publishCommand(ctx context.Context, requestID string, cmd *pb.WalletCommand) error {
+func (s *AsyncWalletService) publishCommand(ctx context.Context, msgUUID string, cmd *pb.WalletCommand) error {
 	// Спан стартуем ДО того, как берём trace-контекст для заголовков —
 	// так consumer в worker'е становится дочерним именно от этого
 	// publish-спана, а не от родительского RPC-спана.
@@ -87,7 +87,7 @@ func (s *AsyncWalletService) publishCommand(ctx context.Context, requestID strin
 			attribute.String("messaging.system", "kafka"),
 			attribute.String("messaging.destination", CommandsTopic),
 			attribute.String("messaging.operation", "publish"),
-			attribute.String("wallet.request_id", requestID),
+			attribute.String("wallet.msg_uuid", msgUUID),
 		))
 	defer span.End()
 
@@ -98,7 +98,7 @@ func (s *AsyncWalletService) publishCommand(ctx context.Context, requestID strin
 	}
 
 	headers := InjectTraceHeaders(publishCtx)
-	if err := s.broker.Publish(publishCtx, CommandsTopic, requestID, headers, payload); err != nil {
+	if err := s.broker.Publish(publishCtx, CommandsTopic, msgUUID, headers, payload); err != nil {
 		span.RecordError(err)
 		return err
 	}
@@ -133,7 +133,7 @@ func (p *WalletCommandProcessor) Run(ctx context.Context) error {
 				attribute.String("messaging.system", "kafka"),
 				attribute.String("messaging.destination", CommandsTopic),
 				attribute.String("messaging.operation", "process"),
-				attribute.String("wallet.request_id", cmd.RequestId),
+				attribute.String("wallet.msg_uuid", cmd.MsgUuid),
 			))
 		defer span.End()
 
@@ -146,12 +146,12 @@ func (p *WalletCommandProcessor) Run(ctx context.Context) error {
 			if err != nil {
 				span.RecordError(err)
 				return p.publishResult(workerCtx, &pb.WalletResult{
-					RequestId: cmd.RequestId,
+					MsgUuid: cmd.MsgUuid,
 					Body:      &pb.WalletResult_Error{Error: &pb.WalletResultError{Message: err.Error()}},
 				})
 			}
 			return p.publishResult(workerCtx, &pb.WalletResult{
-				RequestId: cmd.RequestId,
+				MsgUuid: cmd.MsgUuid,
 				Body: &pb.WalletResult_CreateWallet{
 					CreateWallet: &pb.CreateWalletResult{WalletId: created.ID, Balance: created.Balance, Currency: created.Currency},
 				},
@@ -166,12 +166,12 @@ func (p *WalletCommandProcessor) Run(ctx context.Context) error {
 			if err != nil {
 				span.RecordError(err)
 				return p.publishResult(workerCtx, &pb.WalletResult{
-					RequestId: cmd.RequestId,
+					MsgUuid: cmd.MsgUuid,
 					Body:      &pb.WalletResult_Error{Error: &pb.WalletResultError{Message: err.Error()}},
 				})
 			}
 			return p.publishResult(workerCtx, &pb.WalletResult{
-				RequestId: cmd.RequestId,
+				MsgUuid: cmd.MsgUuid,
 				Body: &pb.WalletResult_Transfer{
 					Transfer: &pb.TransferResult{FromBalance: from.Balance, ToBalance: to.Balance},
 				},
@@ -182,12 +182,12 @@ func (p *WalletCommandProcessor) Run(ctx context.Context) error {
 			if err != nil {
 				span.RecordError(err)
 				return p.publishResult(workerCtx, &pb.WalletResult{
-					RequestId: cmd.RequestId,
+					MsgUuid: cmd.MsgUuid,
 					Body:      &pb.WalletResult_Error{Error: &pb.WalletResultError{Message: err.Error()}},
 				})
 			}
 			return p.publishResult(workerCtx, &pb.WalletResult{
-				RequestId: cmd.RequestId,
+				MsgUuid: cmd.MsgUuid,
 				Body: &pb.WalletResult_GetWallet{
 					GetWallet: &pb.GetWalletResult{WalletId: w.ID, OwnerId: w.OwnerID, Balance: w.Balance, Currency: w.Currency},
 				},
@@ -207,7 +207,7 @@ func (p *WalletCommandProcessor) publishResult(ctx context.Context, res *pb.Wall
 			attribute.String("messaging.system", "kafka"),
 			attribute.String("messaging.destination", ResultsTopic),
 			attribute.String("messaging.operation", "publish"),
-			attribute.String("wallet.request_id", res.RequestId),
+			attribute.String("wallet.msg_uuid", res.MsgUuid),
 		))
 	defer span.End()
 
@@ -218,7 +218,7 @@ func (p *WalletCommandProcessor) publishResult(ctx context.Context, res *pb.Wall
 	}
 
 	headers := InjectTraceHeaders(publishCtx)
-	if err := p.broker.Publish(publishCtx, ResultsTopic, res.RequestId, headers, payload); err != nil {
+	if err := p.broker.Publish(publishCtx, ResultsTopic, res.MsgUuid, headers, payload); err != nil {
 		span.RecordError(err)
 		return err
 	}

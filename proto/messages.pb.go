@@ -24,8 +24,8 @@ const (
 // WalletCommand — сообщение в топике wallet.commands.
 // Публикуется proxy после синтаксической валидации, читается worker'ом.
 type WalletCommand struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	MsgUuid string                 `protobuf:"bytes,1,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
 	//	*WalletCommand_CreateWallet
@@ -66,9 +66,9 @@ func (*WalletCommand) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WalletCommand) GetRequestId() string {
+func (x *WalletCommand) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
@@ -289,8 +289,8 @@ func (x *GetWalletCommand) GetWalletId() string {
 // Публикуется worker'ом после обработки команды, читается напрямую
 // клиентом (в 1 итерации — тем же процессом, что отправил запрос).
 type WalletResult struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	MsgUuid string                 `protobuf:"bytes,1,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
 	//	*WalletResult_CreateWallet
@@ -332,9 +332,9 @@ func (*WalletResult) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *WalletResult) GetRequestId() string {
+func (x *WalletResult) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
@@ -638,10 +638,9 @@ var File_proto_messages_proto protoreflect.FileDescriptor
 
 const file_proto_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x14proto/messages.proto\x12\x06wallet\"\xec\x01\n" +
-	"\rWalletCommand\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12B\n" +
+	"\x14proto/messages.proto\x12\x06wallet\"\xe8\x01\n" +
+	"\rWalletCommand\x12\x19\n" +
+	"\bmsg_uuid\x18\x01 \x01(\tR\amsgUuid\x12B\n" +
 	"\rcreate_wallet\x18\x02 \x01(\v2\x1b.wallet.CreateWalletCommandH\x00R\fcreateWallet\x125\n" +
 	"\btransfer\x18\x03 \x01(\v2\x17.wallet.TransferCommandH\x00R\btransfer\x129\n" +
 	"\n" +
@@ -656,10 +655,9 @@ const file_proto_messages_proto_rawDesc = "" +
 	"toWalletId\x12\x16\n" +
 	"\x06amount\x18\x03 \x01(\x01R\x06amount\"/\n" +
 	"\x10GetWalletCommand\x12\x1b\n" +
-	"\twallet_id\x18\x01 \x01(\tR\bwalletId\"\x9b\x02\n" +
-	"\fWalletResult\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12A\n" +
+	"\twallet_id\x18\x01 \x01(\tR\bwalletId\"\x97\x02\n" +
+	"\fWalletResult\x12\x19\n" +
+	"\bmsg_uuid\x18\x01 \x01(\tR\amsgUuid\x12A\n" +
 	"\rcreate_wallet\x18\x02 \x01(\v2\x1a.wallet.CreateWalletResultH\x00R\fcreateWallet\x124\n" +
 	"\btransfer\x18\x03 \x01(\v2\x16.wallet.TransferResultH\x00R\btransfer\x121\n" +
 	"\x05error\x18\x04 \x01(\v2\x19.wallet.WalletResultErrorH\x00R\x05error\x128\n" +

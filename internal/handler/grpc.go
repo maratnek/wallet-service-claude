@@ -32,8 +32,8 @@ func NewGRPCServer(asyncSvc *async.AsyncWalletService) *GRPCServer {
 
 func (s *GRPCServer) CreateWalletAsync(ctx context.Context, req *pb.CreateWalletRequest) (*pb.CreateWalletAcceptedResponse, error) {
 	if err := s.validateSyntax(ctx, "CreateWalletAsync", func() error {
-		if req.RequestId == "" {
-			return fmt.Errorf("request_id is required")
+		if req.MsgUuid == "" {
+			return fmt.Errorf("msg_uuid is required")
 		}
 		if req.OwnerId == "" {
 			return fmt.Errorf("owner_id is required")
@@ -46,19 +46,19 @@ func (s *GRPCServer) CreateWalletAsync(ctx context.Context, req *pb.CreateWallet
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if err := s.asyncSvc.CreateWalletAsync(ctx, req.RequestId, wallet.CreateWalletInput{
+	if err := s.asyncSvc.CreateWalletAsync(ctx, req.MsgUuid, wallet.CreateWalletInput{
 		OwnerID:  req.OwnerId,
 		Currency: req.Currency,
 	}); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.CreateWalletAcceptedResponse{RequestId: req.RequestId, Status: "accepted"}, nil
+	return &pb.CreateWalletAcceptedResponse{MsgUuid: req.MsgUuid, Status: "accepted"}, nil
 }
 
 func (s *GRPCServer) GetWalletAsync(ctx context.Context, req *pb.GetWalletRequest) (*pb.GetWalletAcceptedResponse, error) {
 	if err := s.validateSyntax(ctx, "GetWalletAsync", func() error {
-		if req.RequestId == "" {
-			return fmt.Errorf("request_id is required")
+		if req.MsgUuid == "" {
+			return fmt.Errorf("msg_uuid is required")
 		}
 		if req.WalletId == "" {
 			return fmt.Errorf("wallet_id is required")
@@ -68,16 +68,16 @@ func (s *GRPCServer) GetWalletAsync(ctx context.Context, req *pb.GetWalletReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if err := s.asyncSvc.GetWalletAsync(ctx, req.RequestId, req.WalletId); err != nil {
+	if err := s.asyncSvc.GetWalletAsync(ctx, req.MsgUuid, req.WalletId); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.GetWalletAcceptedResponse{RequestId: req.RequestId, Status: "accepted"}, nil
+	return &pb.GetWalletAcceptedResponse{MsgUuid: req.MsgUuid, Status: "accepted"}, nil
 }
 
 func (s *GRPCServer) TransferAsync(ctx context.Context, req *pb.TransferRequest) (*pb.TransferAcceptedResponse, error) {
 	if err := s.validateSyntax(ctx, "TransferAsync", func() error {
-		if req.RequestId == "" {
-			return fmt.Errorf("request_id is required")
+		if req.MsgUuid == "" {
+			return fmt.Errorf("msg_uuid is required")
 		}
 		if req.FromWalletId == "" {
 			return fmt.Errorf("from_wallet_id is required")
@@ -90,14 +90,14 @@ func (s *GRPCServer) TransferAsync(ctx context.Context, req *pb.TransferRequest)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if err := s.asyncSvc.TransferAsync(ctx, req.RequestId, wallet.TransferInput{
+	if err := s.asyncSvc.TransferAsync(ctx, req.MsgUuid, wallet.TransferInput{
 		FromID: req.FromWalletId,
 		ToID:   req.ToWalletId,
 		Amount: req.Amount,
 	}); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.TransferAcceptedResponse{RequestId: req.RequestId, Status: "accepted"}, nil
+	return &pb.TransferAcceptedResponse{MsgUuid: req.MsgUuid, Status: "accepted"}, nil
 }
 
 // validateSyntax оборачивает проверку полей в отдельный спан — в трейсе

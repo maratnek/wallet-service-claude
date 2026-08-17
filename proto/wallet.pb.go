@@ -25,7 +25,7 @@ type CreateWalletRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OwnerId       string                 `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	Currency      string                 `protobuf:"bytes,2,opt,name=currency,proto3" json:"currency,omitempty"`
-	RequestId     string                 `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	MsgUuid       string                 `protobuf:"bytes,3,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,16 +74,16 @@ func (x *CreateWalletRequest) GetCurrency() string {
 	return ""
 }
 
-func (x *CreateWalletRequest) GetRequestId() string {
+func (x *CreateWalletRequest) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
 
 type CreateWalletAcceptedResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	MsgUuid       string                 `protobuf:"bytes,1,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -119,9 +119,9 @@ func (*CreateWalletAcceptedResponse) Descriptor() ([]byte, []int) {
 	return file_proto_wallet_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CreateWalletAcceptedResponse) GetRequestId() string {
+func (x *CreateWalletAcceptedResponse) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
@@ -136,7 +136,7 @@ func (x *CreateWalletAcceptedResponse) GetStatus() string {
 type GetWalletRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WalletId      string                 `protobuf:"bytes,1,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
-	RequestId     string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	MsgUuid       string                 `protobuf:"bytes,2,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -178,16 +178,16 @@ func (x *GetWalletRequest) GetWalletId() string {
 	return ""
 }
 
-func (x *GetWalletRequest) GetRequestId() string {
+func (x *GetWalletRequest) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
 
 type GetWalletAcceptedResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	MsgUuid       string                 `protobuf:"bytes,1,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -223,9 +223,9 @@ func (*GetWalletAcceptedResponse) Descriptor() ([]byte, []int) {
 	return file_proto_wallet_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetWalletAcceptedResponse) GetRequestId() string {
+func (x *GetWalletAcceptedResponse) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
@@ -242,7 +242,7 @@ type TransferRequest struct {
 	FromWalletId  string                 `protobuf:"bytes,1,opt,name=from_wallet_id,json=fromWalletId,proto3" json:"from_wallet_id,omitempty"`
 	ToWalletId    string                 `protobuf:"bytes,2,opt,name=to_wallet_id,json=toWalletId,proto3" json:"to_wallet_id,omitempty"`
 	Amount        float64                `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`
-	RequestId     string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	MsgUuid       string                 `protobuf:"bytes,4,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -298,16 +298,16 @@ func (x *TransferRequest) GetAmount() float64 {
 	return 0
 }
 
-func (x *TransferRequest) GetRequestId() string {
+func (x *TransferRequest) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
 
 type TransferAcceptedResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	MsgUuid       string                 `protobuf:"bytes,1,opt,name=msg_uuid,json=msgUuid,proto3" json:"msg_uuid,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -343,9 +343,9 @@ func (*TransferAcceptedResponse) Descriptor() ([]byte, []int) {
 	return file_proto_wallet_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *TransferAcceptedResponse) GetRequestId() string {
+func (x *TransferAcceptedResponse) GetMsgUuid() string {
 	if x != nil {
-		return x.RequestId
+		return x.MsgUuid
 	}
 	return ""
 }
@@ -361,34 +361,28 @@ var File_proto_wallet_proto protoreflect.FileDescriptor
 
 const file_proto_wallet_proto_rawDesc = "" +
 	"\n" +
-	"\x12proto/wallet.proto\x12\x06wallet\"k\n" +
+	"\x12proto/wallet.proto\x12\x06wallet\"g\n" +
 	"\x13CreateWalletRequest\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12\x1a\n" +
-	"\bcurrency\x18\x02 \x01(\tR\bcurrency\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x03 \x01(\tR\trequestId\"U\n" +
-	"\x1cCreateWalletAcceptedResponse\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"N\n" +
+	"\bcurrency\x18\x02 \x01(\tR\bcurrency\x12\x19\n" +
+	"\bmsg_uuid\x18\x03 \x01(\tR\amsgUuid\"Q\n" +
+	"\x1cCreateWalletAcceptedResponse\x12\x19\n" +
+	"\bmsg_uuid\x18\x01 \x01(\tR\amsgUuid\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"J\n" +
 	"\x10GetWalletRequest\x12\x1b\n" +
-	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\"R\n" +
-	"\x19GetWalletAcceptedResponse\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"\x90\x01\n" +
+	"\twallet_id\x18\x01 \x01(\tR\bwalletId\x12\x19\n" +
+	"\bmsg_uuid\x18\x02 \x01(\tR\amsgUuid\"N\n" +
+	"\x19GetWalletAcceptedResponse\x12\x19\n" +
+	"\bmsg_uuid\x18\x01 \x01(\tR\amsgUuid\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"\x8c\x01\n" +
 	"\x0fTransferRequest\x12$\n" +
 	"\x0efrom_wallet_id\x18\x01 \x01(\tR\ffromWalletId\x12 \n" +
 	"\fto_wallet_id\x18\x02 \x01(\tR\n" +
 	"toWalletId\x12\x16\n" +
-	"\x06amount\x18\x03 \x01(\x01R\x06amount\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x04 \x01(\tR\trequestId\"Q\n" +
-	"\x18TransferAcceptedResponse\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\x01R\x06amount\x12\x19\n" +
+	"\bmsg_uuid\x18\x04 \x01(\tR\amsgUuid\"M\n" +
+	"\x18TransferAcceptedResponse\x12\x19\n" +
+	"\bmsg_uuid\x18\x01 \x01(\tR\amsgUuid\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status2\x82\x02\n" +
 	"\rWalletService\x12V\n" +
 	"\x11CreateWalletAsync\x12\x1b.wallet.CreateWalletRequest\x1a$.wallet.CreateWalletAcceptedResponse\x12M\n" +

@@ -298,7 +298,7 @@
       <span class="chip">3 go services</span>
       <span class="chip">kafka</span>
       <span class="chip">otel + jaeger</span>
-      <span class="chip accent">trace_id = request_id</span>
+      <span class="chip accent">trace_id = msg_uuid</span>
     </div>
   </header>
 
@@ -419,11 +419,11 @@
     <div class="callout">
       <span class="mark">T</span>
       <div class="body">
-        <code>trace_id := request_id</code>
+        <code>trace_id := msg_uuid</code>
         <p>
           Since <code style="font-family:var(--mono)">internal/telemetry/idgen.go</code>,
           the client seeds the root span's trace ID with the same UUID it already
-          uses as <code style="font-family:var(--mono)">request_id</code> to match a
+          uses as <code style="font-family:var(--mono)">msg_uuid</code> to match a
           command to its result. Every hop above inherits it — so
           <code style="font-family:var(--mono)">GET /api/traces/&lt;uuid without dashes&gt;</code>
           opens the full trace directly, no tag search needed. Falls back to a random

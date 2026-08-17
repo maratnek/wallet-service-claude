@@ -4,7 +4,7 @@
 исполняет бизнес-логику — он только валидирует вход и публикует команду в
 Kafka. Единственный исполнитель команд и владелец состояния — `wallet-worker`.
 Клиент подписывается на топик результатов и сопоставляет ответ по
-`request_id`. Демонстрирует организацию OTel-трейсов, которые сквозным
+`msg_uuid`. Демонстрирует организацию OTel-трейсов, которые сквозным
 образом проходят через gRPC → Kafka → gRPC-клиент.
 
 ## Структура
@@ -55,7 +55,7 @@ flowchart LR
     S -- "publish command\n(traceparent в headers)" --> K
     K -- "consume command" --> W
     W -- "publish result\n(traceparent в headers)" --> K
-    K -- "consume result\n(по request_id)" --> C
+    K -- "consume result\n(по msg_uuid)" --> C
 
     S -. OTLP .-> OC
     W -. OTLP .-> OC

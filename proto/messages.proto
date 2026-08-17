@@ -6,7 +6,7 @@ option go_package = "wallet-service/proto";
 // WalletCommand — сообщение в топике wallet.commands.
 // Публикуется proxy после синтаксической валидации, читается worker'ом.
 message WalletCommand {
-  string request_id = 1;
+  string msg_uuid = 1;
   oneof body {
     CreateWalletCommand create_wallet = 2;
     TransferCommand transfer = 3;
@@ -33,7 +33,7 @@ message GetWalletCommand {
 // Публикуется worker'ом после обработки команды, читается напрямую
 // клиентом (в 1 итерации — тем же процессом, что отправил запрос).
 message WalletResult {
-  string request_id = 1;
+  string msg_uuid = 1;
   oneof body {
     CreateWalletResult create_wallet = 2;
     TransferResult      transfer      = 3;

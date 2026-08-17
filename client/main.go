@@ -22,7 +22,7 @@ import (
 	pb "wallet-service/proto"
 )
 
-// resultWaiter сопоставляет request_id с горутиной, ожидающей ответ из
+// resultWaiter сопоставляет msg_uuid с горутиной, ожидающей ответ из
 // wallet.results. Записи никогда не удаляются по таймауту, если результат
 // так и не пришёл — в демо-клиенте это осознанно опущено.
 type resultWaiter struct {
@@ -34,19 +34,19 @@ func newResultWaiter() *resultWaiter {
 	return &resultWaiter{pending: make(map[string]chan *pb.WalletResult)}
 }
 
-func (w *resultWaiter) register(requestID string) chan *pb.WalletResult {
+func (w *resultWaiter) register(msgUUID string) chan *pb.WalletResult {
 	ch := make(chan *pb.WalletResult, 1)
 	w.mu.Lock()
-	w.pending[requestID] = ch
+	w.pending[msgUUID] = ch
 	w.mu.Unlock()
 	return ch
 }
 
-func (w *resultWaiter) deliver(requestID string, res *pb.WalletResult) {
+func (w *resultWaiter) deliver(msgUUID string, res *pb.WalletResult) {
 	w.mu.Lock()
-	ch, ok := w.pending[requestID]
+	ch, ok := w.pending[msgUUID]
 	if ok {
-		delete(w.pending, requestID)
+		delete(w.pending, msgUUID)
 	}
 	w.mu.Unlock()
 	if ok {
@@ -64,18 +64,18 @@ type walletClient struct {
 
 func (c *walletClient) createWallet(ctx context.Context, ownerID, currency string) (*pb.CreateWalletResult, error) {
 	id := uuid.New()
-	reqID := id.String()
+	msgUUID := id.String()
 	seedCtx := telemetry.WithTraceID(ctx, trace.TraceID(id))
 	reqCtx, span := c.tracer.Start(seedCtx, "client.create_wallet",
-		trace.WithAttributes(attribute.String("wallet.request_id", reqID), attribute.String("wallet.owner_id", ownerID)))
-	done := c.waiter.register(reqID)
+		trace.WithAttributes(attribute.String("wallet.msg_uuid", msgUUID), attribute.String("wallet.owner_id", ownerID)))
+	done := c.waiter.register(msgUUID)
 
-	accepted, err := c.rpc.CreateWalletAsync(reqCtx, &pb.CreateWalletRequest{RequestId: reqID, OwnerId: ownerID, Currency: currency})
+	accepted, err := c.rpc.CreateWalletAsync(reqCtx, &pb.CreateWalletRequest{MsgUuid: msgUUID, OwnerId: ownerID, Currency: currency})
 	if err != nil {
 		span.End()
 		return nil, fmt.Errorf("CreateWalletAsync: %w", err)
 	}
-	fmt.Printf("accepted: request_id=%s status=%s\n", accepted.RequestId, accepted.Status)
+	fmt.Printf("accepted: msg_uuid=%s status=%s\n", accepted.MsgUuid, accepted.Status)
 
 	select {
 	case res := <-done:
@@ -96,18 +96,18 @@ func (c *walletClient) createWallet(ctx context.Context, ownerID, currency strin
 
 func (c *walletClient) getWallet(ctx context.Context, walletID string) (*pb.GetWalletResult, error) {
 	id := uuid.New()
-	reqID := id.String()
+	msgUUID := id.String()
 	seedCtx := telemetry.WithTraceID(ctx, trace.TraceID(id))
 	reqCtx, span := c.tracer.Start(seedCtx, "client.get_wallet",
-		trace.WithAttributes(attribute.String("wallet.request_id", reqID), attribute.String("wallet.id", walletID)))
-	done := c.waiter.register(reqID)
+		trace.WithAttributes(attribute.String("wallet.msg_uuid", msgUUID), attribute.String("wallet.id", walletID)))
+	done := c.waiter.register(msgUUID)
 
-	accepted, err := c.rpc.GetWalletAsync(reqCtx, &pb.GetWalletRequest{RequestId: reqID, WalletId: walletID})
+	accepted, err := c.rpc.GetWalletAsync(reqCtx, &pb.GetWalletRequest{MsgUuid: msgUUID, WalletId: walletID})
 	if err != nil {
 		span.End()
 		return nil, fmt.Errorf("GetWalletAsync: %w", err)
 	}
-	fmt.Printf("accepted: request_id=%s status=%s\n", accepted.RequestId, accepted.Status)
+	fmt.Printf("accepted: msg_uuid=%s status=%s\n", accepted.MsgUuid, accepted.Status)
 
 	select {
 	case res := <-done:
@@ -165,10 +165,10 @@ func main() {
 
 			resultCtx := async.ExtractTraceContext(msgCtx, headers)
 			_, span := tracer.Start(resultCtx, "wallet-client.consume-result",
-				trace.WithAttributes(attribute.String("wallet.request_id", res.RequestId)))
+				trace.WithAttributes(attribute.String("wallet.msg_uuid", res.MsgUuid)))
 			defer span.End()
 
-			waiter.deliver(res.RequestId, &res)
+			waiter.deliver(res.MsgUuid, &res)
 			return nil
 		})
 		if err != nil && consumeCtx.Err() == nil {

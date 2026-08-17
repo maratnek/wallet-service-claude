@@ -32,7 +32,7 @@ const (
 // вход, публикует команду в Kafka (wallet.commands) и сразу отвечает
 // AcceptedResponse. Итоговый результат приходит отдельным сообщением в
 // wallet.results — клиент подписывается на топик и сопоставляет ответ по
-// request_id (см. proto/messages.proto).
+// msg_uuid (см. proto/messages.proto).
 type WalletServiceClient interface {
 	CreateWalletAsync(ctx context.Context, in *CreateWalletRequest, opts ...grpc.CallOption) (*CreateWalletAcceptedResponse, error)
 	GetWalletAsync(ctx context.Context, in *GetWalletRequest, opts ...grpc.CallOption) (*GetWalletAcceptedResponse, error)
@@ -85,7 +85,7 @@ func (c *walletServiceClient) TransferAsync(ctx context.Context, in *TransferReq
 // вход, публикует команду в Kafka (wallet.commands) и сразу отвечает
 // AcceptedResponse. Итоговый результат приходит отдельным сообщением в
 // wallet.results — клиент подписывается на топик и сопоставляет ответ по
-// request_id (см. proto/messages.proto).
+// msg_uuid (см. proto/messages.proto).
 type WalletServiceServer interface {
 	CreateWalletAsync(context.Context, *CreateWalletRequest) (*CreateWalletAcceptedResponse, error)
 	GetWalletAsync(context.Context, *GetWalletRequest) (*GetWalletAcceptedResponse, error)

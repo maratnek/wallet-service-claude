@@ -32,8 +32,8 @@ func TestAsyncWalletService_CreateWalletIsProcessed(t *testing.T) {
 		t.Fatalf("start processor: %v", err)
 	}
 
-	requestID := uuid.NewString()
-	if err := asyncSvc.CreateWalletAsync(ctx, requestID, wallet.CreateWalletInput{
+	msgUUID := uuid.NewString()
+	if err := asyncSvc.CreateWalletAsync(ctx, msgUUID, wallet.CreateWalletInput{
 		OwnerID:  "alice",
 		Currency: "USD",
 	}); err != nil {
@@ -83,15 +83,15 @@ func TestAsyncWalletService_GetWalletIsProcessed(t *testing.T) {
 		t.Fatalf("seed wallet: %v", err)
 	}
 
-	requestID := uuid.NewString()
-	if err := asyncSvc.GetWalletAsync(ctx, requestID, "wallet-1"); err != nil {
+	msgUUID := uuid.NewString()
+	if err := asyncSvc.GetWalletAsync(ctx, msgUUID, "wallet-1"); err != nil {
 		t.Fatalf("get wallet async: %v", err)
 	}
 
 	select {
 	case res := <-results:
-		if res.RequestId != requestID {
-			t.Fatalf("request_id: want %s, got %s", requestID, res.RequestId)
+		if res.MsgUuid != msgUUID {
+			t.Fatalf("msg_uuid: want %s, got %s", msgUUID, res.MsgUuid)
 		}
 		body, ok := res.Body.(*pb.WalletResult_GetWallet)
 		if !ok {
