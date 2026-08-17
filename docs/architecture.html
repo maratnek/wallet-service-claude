@@ -434,6 +434,113 @@
   </section>
 
   <section>
+    <span class="section-label">Business rules</span>
+    <div class="table-wrap">
+      <table class="ref">
+        <thead>
+          <tr><th>Operation</th><th>Validates</th><th>Effect</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CreateWalletAsync</td>
+            <td class="dim">owner_id, currency required</td>
+            <td>new wallet, balance = initial_balance (uint64, default 0)</td>
+          </tr>
+          <tr>
+            <td>GetWalletAsync</td>
+            <td class="dim">wallet_id must exist</td>
+            <td class="dim">returns current owner/balance/currency</td>
+          </tr>
+          <tr>
+            <td>TransferAsync</td>
+            <td class="dim">amount != 0, from_id != to_id, both wallets exist, from.balance &gt;= amount</td>
+            <td>from.balance -= amount; to.balance += amount</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--ink-dim);max-width:70ch;margin:0;">
+      Balances are <code style="font-family:var(--mono)">uint64</code> whole currency
+      units on the wire and in the domain model — negative values are impossible by
+      type, not just by validation. wallet-worker is the only consumer of
+      <code style="font-family:var(--mono)">wallet.commands</code> (1 partition), so
+      Transfer's read-check-write never races with itself.
+    </p>
+  </section>
+
+  <section>
+    <span class="section-label">Test scenario</span>
+    <figure>
+      <div class="diagram-frame">
+        <svg class="topology" viewBox="0 0 940 300" role="img"
+             aria-label="wallet-client's demo run as a balance timeline: alice's wallet is created with 500, bob's with 0; both are read back unchanged; a 150 transfer moves alice down to 350 and bob up to 150 in the same step; both are read back again at the new values.">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <polygon points="0,0 10,5 0,10" fill="currentColor"></polygon>
+            </marker>
+          </defs>
+
+          <!-- gridlines -->
+          <g color="var(--border)">
+            <line x1="80" y1="40" x2="890" y2="40" stroke="currentColor" stroke-width="1"></line>
+            <line x1="80" y1="260" x2="890" y2="260" stroke="currentColor" stroke-width="1"></line>
+          </g>
+          <text x="72" y="44" text-anchor="end" font-size="10.5" fill="var(--ink-dim)">500</text>
+          <text x="72" y="264" text-anchor="end" font-size="10.5" fill="var(--ink-dim)">0</text>
+
+          <!-- read checkpoints at step 3 and step 5: dashed guides -->
+          <g color="var(--ink-dim)">
+            <line x1="490" y1="30" x2="490" y2="270" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"></line>
+            <line x1="890" y1="30" x2="890" y2="270" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"></line>
+          </g>
+
+          <!-- alice: solid line, created at step1 (x=90,y=40), transfer-out at step4 (x=690) -->
+          <path d="M90,40 L690,40 L690,106 L890,106" fill="none" stroke="var(--ink)" stroke-width="2"></path>
+          <circle cx="90" cy="40" r="4" fill="var(--ink)"></circle>
+          <circle cx="890" cy="106" r="4" fill="var(--ink)"></circle>
+
+          <!-- bob: dashed line, created at step2 (x=290,y=260), transfer-in at step4 (x=690) -->
+          <path d="M290,260 L690,260 L690,194 L890,194" fill="none" stroke="var(--ink-dim)" stroke-width="2" stroke-dasharray="6 4"></path>
+          <circle cx="290" cy="260" r="4" fill="var(--ink-dim)"></circle>
+          <circle cx="890" cy="194" r="4" fill="var(--ink-dim)"></circle>
+
+          <!-- transfer connector: highlighted, the actual mechanism -->
+          <g color="var(--teal)">
+            <line x1="705" y1="112" x2="705" y2="188" stroke="currentColor" stroke-width="2" marker-end="url(#arrow2)"></line>
+            <text x="715" y="154" font-size="12" font-weight="700" fill="currentColor">150</text>
+            <circle cx="690" cy="106" r="4.5" fill="currentColor"></circle>
+            <circle cx="690" cy="194" r="4.5" fill="currentColor"></circle>
+          </g>
+
+          <!-- line-end labels -->
+          <text x="100" y="34" font-size="11" fill="var(--ink)">alice created → 500</text>
+          <text x="300" y="278" font-size="11" fill="var(--ink-dim)">bob created → 0</text>
+          <text x="898" y="102" font-size="11" font-weight="700" fill="var(--ink)">350</text>
+          <text x="898" y="198" font-size="11" font-weight="700" fill="var(--ink-dim)">150</text>
+
+          <!-- step labels on x-axis -->
+          <g font-family="var(--mono)" font-size="10.5" fill="var(--ink-dim)">
+            <text x="90" y="292" text-anchor="middle">1 create alice</text>
+            <text x="290" y="292" text-anchor="middle">2 create bob</text>
+            <text x="490" y="292" text-anchor="middle">3 get ×2</text>
+            <text x="690" y="292" text-anchor="middle">4 transfer 150</text>
+            <text x="890" y="292" text-anchor="middle">5 get ×2</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        Solid line = alice's balance, dashed = bob's — two separate accounts, read
+        left to right. Steps 3 and 5 (dashed vertical guides) are
+        <strong>reads</strong>: the lines stay flat, nothing mutates. Step 4 is the
+        only <strong>write</strong>: the teal connector is the actual transfer —
+        150 leaves alice's line and arrives on bob's line in the same async command,
+        which is why the two step-changes are level with each other on the time axis.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
     <span class="section-label">Compose reference</span>
     <div class="table-wrap">
       <table class="ref">
@@ -443,7 +550,7 @@
         <tbody>
           <tr>
             <td>wallet-client</td>
-            <td class="dim">one-shot: 3× create, 3× get</td>
+            <td class="dim">one-shot: 2× create, 2× get, transfer, 2× get</td>
             <td class="dim">—</td>
             <td>wallet-service (healthy)</td>
           </tr>

@@ -15,14 +15,15 @@ message WalletCommand {
 }
 
 message CreateWalletCommand {
-  string owner_id = 1;
-  string currency = 2;
+  string owner_id        = 1;
+  string currency        = 2;
+  uint64 initial_balance = 3; // whole currency units
 }
 
 message TransferCommand {
   string from_wallet_id = 1;
   string to_wallet_id   = 2;
-  double amount         = 3;
+  uint64 amount         = 3; // whole currency units
 }
 
 message GetWalletCommand {
@@ -44,19 +45,19 @@ message WalletResult {
 
 message CreateWalletResult {
   string wallet_id = 1;
-  double balance    = 2;
+  uint64 balance    = 2; // whole currency units
   string currency   = 3;
 }
 
 message TransferResult {
-  double from_balance = 1;
-  double to_balance   = 2;
+  uint64 from_balance = 1; // whole currency units
+  uint64 to_balance   = 2; // whole currency units
 }
 
 message GetWalletResult {
   string wallet_id = 1;
   string owner_id  = 2;
-  double balance   = 3;
+  uint64 balance   = 3; // whole currency units
   string currency  = 4;
 }
 

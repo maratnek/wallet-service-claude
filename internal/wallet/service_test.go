@@ -36,7 +36,24 @@ func TestCreateWallet_Success(t *testing.T) {
 		t.Errorf("currency: want USD, got %s", w.Currency)
 	}
 	if w.Balance != 0 {
-		t.Errorf("initial balance: want 0, got %.2f", w.Balance)
+		t.Errorf("initial balance: want 0, got %d", w.Balance)
+	}
+}
+
+func TestCreateWallet_WithInitialBalance(t *testing.T) {
+	svc := setupService()
+
+	w, err := svc.CreateWallet(context.Background(), wallet.CreateWalletInput{
+		OwnerID:        "alice",
+		Currency:       "USD",
+		InitialBalance: 500,
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if w.Balance != 500 {
+		t.Errorf("initial balance: want 500, got %d", w.Balance)
 	}
 }
 
@@ -85,10 +102,10 @@ func TestTransfer_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if from.Balance != 300 {
-		t.Errorf("from balance: want 300, got %.2f", from.Balance)
+		t.Errorf("from balance: want 300, got %d", from.Balance)
 	}
 	if to.Balance != 300 {
-		t.Errorf("to balance: want 300, got %.2f", to.Balance)
+		t.Errorf("to balance: want 300, got %d", to.Balance)
 	}
 }
 
@@ -125,17 +142,17 @@ func TestTransfer_SameWallet(t *testing.T) {
 	}
 }
 
-func TestTransfer_NegativeAmount(t *testing.T) {
+func TestTransfer_ZeroAmount(t *testing.T) {
 	svc := setupService()
 
 	_, _, err := svc.Transfer(context.Background(), wallet.TransferInput{
 		FromID: "w-alice",
 		ToID:   "w-bob",
-		Amount: -50,
+		Amount: 0,
 	})
 
 	if err == nil {
-		t.Fatal("expected error for negative amount, got nil")
+		t.Fatal("expected error for zero amount, got nil")
 	}
 }
 

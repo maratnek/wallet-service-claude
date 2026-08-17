@@ -52,7 +52,7 @@ func (s *AsyncWalletService) CreateWalletAsync(ctx context.Context, msgUUID stri
 	cmd := &pb.WalletCommand{
 		MsgUuid: msgUUID,
 		Body: &pb.WalletCommand_CreateWallet{
-			CreateWallet: &pb.CreateWalletCommand{OwnerId: in.OwnerID, Currency: in.Currency},
+			CreateWallet: &pb.CreateWalletCommand{OwnerId: in.OwnerID, Currency: in.Currency, InitialBalance: in.InitialBalance},
 		},
 	}
 	return s.publishCommand(ctx, msgUUID, cmd)
@@ -140,8 +140,9 @@ func (p *WalletCommandProcessor) Run(ctx context.Context) error {
 		switch body := cmd.Body.(type) {
 		case *pb.WalletCommand_CreateWallet:
 			created, err := p.walletSvc.CreateWallet(workerCtx, wallet.CreateWalletInput{
-				OwnerID:  body.CreateWallet.OwnerId,
-				Currency: body.CreateWallet.Currency,
+				OwnerID:        body.CreateWallet.OwnerId,
+				Currency:       body.CreateWallet.Currency,
+				InitialBalance: body.CreateWallet.InitialBalance,
 			})
 			if err != nil {
 				span.RecordError(err)

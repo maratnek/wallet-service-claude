@@ -62,7 +62,7 @@ type walletClient struct {
 	waiter *resultWaiter
 }
 
-func (c *walletClient) createWallet(ctx context.Context, ownerID, currency string) (*pb.CreateWalletResult, error) {
+func (c *walletClient) createWallet(ctx context.Context, ownerID, currency string, initialBalance uint64) (*pb.CreateWalletResult, error) {
 	id := uuid.New()
 	msgUUID := id.String()
 	seedCtx := telemetry.WithTraceID(ctx, trace.TraceID(id))
@@ -70,7 +70,9 @@ func (c *walletClient) createWallet(ctx context.Context, ownerID, currency strin
 		trace.WithAttributes(attribute.String("wallet.msg_uuid", msgUUID), attribute.String("wallet.owner_id", ownerID)))
 	done := c.waiter.register(msgUUID)
 
-	accepted, err := c.rpc.CreateWalletAsync(reqCtx, &pb.CreateWalletRequest{MsgUuid: msgUUID, OwnerId: ownerID, Currency: currency})
+	accepted, err := c.rpc.CreateWalletAsync(reqCtx, &pb.CreateWalletRequest{
+		MsgUuid: msgUUID, OwnerId: ownerID, Currency: currency, InitialBalance: initialBalance,
+	})
 	if err != nil {
 		span.End()
 		return nil, fmt.Errorf("CreateWalletAsync: %w", err)
@@ -91,6 +93,45 @@ func (c *walletClient) createWallet(ctx context.Context, ownerID, currency strin
 	case <-time.After(15 * time.Second):
 		span.End()
 		return nil, fmt.Errorf("timed out waiting for create result")
+	}
+}
+
+func (c *walletClient) transfer(ctx context.Context, fromWalletID, toWalletID string, amount uint64) (*pb.TransferResult, error) {
+	id := uuid.New()
+	msgUUID := id.String()
+	seedCtx := telemetry.WithTraceID(ctx, trace.TraceID(id))
+	reqCtx, span := c.tracer.Start(seedCtx, "client.transfer",
+		trace.WithAttributes(
+			attribute.String("wallet.msg_uuid", msgUUID),
+			attribute.String("wallet.from_id", fromWalletID),
+			attribute.String("wallet.to_id", toWalletID),
+			attribute.Int64("wallet.amount", int64(amount)),
+		))
+	done := c.waiter.register(msgUUID)
+
+	accepted, err := c.rpc.TransferAsync(reqCtx, &pb.TransferRequest{
+		MsgUuid: msgUUID, FromWalletId: fromWalletID, ToWalletId: toWalletID, Amount: amount,
+	})
+	if err != nil {
+		span.End()
+		return nil, fmt.Errorf("TransferAsync: %w", err)
+	}
+	fmt.Printf("accepted: msg_uuid=%s status=%s\n", accepted.MsgUuid, accepted.Status)
+
+	select {
+	case res := <-done:
+		span.End()
+		switch body := res.Body.(type) {
+		case *pb.WalletResult_Transfer:
+			return body.Transfer, nil
+		case *pb.WalletResult_Error:
+			return nil, fmt.Errorf("transfer error: %s", body.Error.Message)
+		default:
+			return nil, fmt.Errorf("unexpected result type: %T", body)
+		}
+	case <-time.After(15 * time.Second):
+		span.End()
+		return nil, fmt.Errorf("timed out waiting for transfer result")
 	}
 }
 
@@ -182,30 +223,52 @@ func main() {
 
 	client := &walletClient{rpc: pb.NewWalletServiceClient(conn), tracer: tracer, waiter: waiter}
 
-	owners := []string{"alice", "bob", "carol"}
+	const transferAmount = 150
 
-	// ── Сценарий 1: создать несколько кошельков асинхронно ──────────────────
-	fmt.Println("=== Scenario 1: Create wallets (async) ===")
+	// ── Сценарий 1: создать 2 кошелька, alice — с начальным балансом ────────
+	fmt.Println("=== Scenario 1: Create 2 wallets (async) ===")
 
-	walletIDs := make([]string, 0, len(owners))
-	for _, owner := range owners {
-		w, err := client.createWallet(ctx, owner, "USD")
-		if err != nil {
-			log.Fatalf("create wallet for %s: %v", owner, err)
-		}
-		fmt.Printf("wallet created: id=%s balance=%.2f %s\n", w.WalletId, w.Balance, w.Currency)
-		walletIDs = append(walletIDs, w.WalletId)
+	alice, err := client.createWallet(ctx, "alice", "USD", 500)
+	if err != nil {
+		log.Fatalf("create wallet for alice: %v", err)
 	}
+	fmt.Printf("wallet created: id=%s balance=%d %s\n", alice.WalletId, alice.Balance, alice.Currency)
 
-	// ── Сценарий 2: проверить состояние каждого кошелька асинхронно ─────────
-	fmt.Println("\n=== Scenario 2: Get wallet state (async) ===")
+	bob, err := client.createWallet(ctx, "bob", "USD", 0)
+	if err != nil {
+		log.Fatalf("create wallet for bob: %v", err)
+	}
+	fmt.Printf("wallet created: id=%s balance=%d %s\n", bob.WalletId, bob.Balance, bob.Currency)
 
-	for _, id := range walletIDs {
+	// ── Сценарий 2: проверить состояние обоих кошельков до перевода ─────────
+	fmt.Println("\n=== Scenario 2: Get wallet state before transfer (2x async) ===")
+
+	for _, id := range []string{alice.WalletId, bob.WalletId} {
 		w, err := client.getWallet(ctx, id)
 		if err != nil {
 			log.Fatalf("get wallet %s: %v", id, err)
 		}
-		fmt.Printf("wallet state: id=%s owner=%s balance=%.2f %s\n", w.WalletId, w.OwnerId, w.Balance, w.Currency)
+		fmt.Printf("wallet state: id=%s owner=%s balance=%d %s\n", w.WalletId, w.OwnerId, w.Balance, w.Currency)
+	}
+
+	// ── Сценарий 3: перевод alice → bob ──────────────────────────────────────
+	fmt.Printf("\n=== Scenario 3: Transfer %d alice -> bob (async) ===\n", transferAmount)
+
+	tr, err := client.transfer(ctx, alice.WalletId, bob.WalletId, transferAmount)
+	if err != nil {
+		log.Fatalf("transfer alice -> bob: %v", err)
+	}
+	fmt.Printf("transfer done: from_balance=%d to_balance=%d\n", tr.FromBalance, tr.ToBalance)
+
+	// ── Сценарий 4: проверить состояние обоих кошельков после перевода ──────
+	fmt.Println("\n=== Scenario 4: Get wallet state after transfer (2x async) ===")
+
+	for _, id := range []string{alice.WalletId, bob.WalletId} {
+		w, err := client.getWallet(ctx, id)
+		if err != nil {
+			log.Fatalf("get wallet %s: %v", id, err)
+		}
+		fmt.Printf("wallet state: id=%s owner=%s balance=%d %s\n", w.WalletId, w.OwnerId, w.Balance, w.Currency)
 	}
 
 	time.Sleep(3 * time.Second)

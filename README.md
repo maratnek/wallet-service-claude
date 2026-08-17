@@ -93,6 +93,20 @@ make up
 open http://localhost:16686
 ```
 
+## Демо-сценарий (wallet-client)
+
+`client/main.go` — не библиотека, а исполняемый прогон, при каждом запуске
+делает 5 async-вызовов подряд:
+
+1. `CreateWalletAsync` — alice, `initial_balance=500`
+2. `CreateWalletAsync` — bob, `initial_balance=0`
+3. `GetWalletAsync` × 2 — баланс обоих кошельков до перевода
+4. `TransferAsync` — 150 alice → bob
+5. `GetWalletAsync` × 2 — баланс обоих кошельков после перевода
+
+Каждый вызов — отдельный `msg_uuid` (== `trace_id`, см. ниже) и отдельный
+трейс в Jaeger.
+
 ## Трейс в Jaeger
 
 Один вызов `CreateWalletAsync` создаёт такое дерево спанов:
@@ -129,6 +143,14 @@ client.create_wallet                        (wallet-client, ручной, отк
   заголовки сообщения (`InjectTraceHeaders`/`ExtractTraceContext`), не в тело
   — так спан в worker'е становится child-спаном от `publish-command`, а не
   новым root-трейсом.
+- **`trace_id = msg_uuid`** — клиент сидирует корневой спан кастомным
+  `sdktrace.IDGenerator` (`internal/telemetry/idgen.go`) тем же UUID, что уже
+  используется как `msg_uuid` для сопоставления команды и результата. Трейс в
+  Jaeger открывается напрямую по `GET /api/traces/<uuid без дефисов>`, без
+  поиска по тегу.
+- **Баланс/сумма — `uint64`** — деньги представлены в целых единицах валюты
+  и на wire (proto), и в бизнес-логике; отрицательные значения невозможны на
+  уровне типов, а не только валидацией в рантайме.
 - **`otel.Tracer()` в конструкторе** — не в каждом методе.
 - **`ctx` везде** — любая IO функция принимает context первым аргументом.
 - **`defer span.End()`** — всегда сразу после `Start`.

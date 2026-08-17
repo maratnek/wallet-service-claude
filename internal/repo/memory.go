@@ -15,7 +15,7 @@ import (
 type Wallet struct {
 	ID       string
 	OwnerID  string
-	Balance  float64
+	Balance  uint64
 	Currency string
 }
 
@@ -94,7 +94,7 @@ func (r *InMemory) Update(ctx context.Context, w Wallet) error {
 			attribute.String("db.system", "in-memory"),
 			attribute.String("db.operation", "UPDATE"),
 			attribute.String("wallet.id", w.ID),
-			attribute.Float64("wallet.balance", w.Balance),
+			attribute.Int64("wallet.balance", int64(w.Balance)),
 		),
 	)
 	defer span.End()

@@ -47,8 +47,9 @@ func (s *GRPCServer) CreateWalletAsync(ctx context.Context, req *pb.CreateWallet
 	}
 
 	if err := s.asyncSvc.CreateWalletAsync(ctx, req.MsgUuid, wallet.CreateWalletInput{
-		OwnerID:  req.OwnerId,
-		Currency: req.Currency,
+		OwnerID:        req.OwnerId,
+		Currency:       req.Currency,
+		InitialBalance: req.InitialBalance,
 	}); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

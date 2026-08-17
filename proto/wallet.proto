@@ -15,9 +15,10 @@ service WalletService {
 }
 
 message CreateWalletRequest {
-  string owner_id   = 1;
-  string currency   = 2;
-  string msg_uuid = 3;
+  string owner_id        = 1;
+  string currency        = 2;
+  string msg_uuid        = 3;
+  uint64 initial_balance = 4; // optional, whole currency units, defaults to 0
 }
 
 message CreateWalletAcceptedResponse {
@@ -38,7 +39,7 @@ message GetWalletAcceptedResponse {
 message TransferRequest {
   string from_wallet_id = 1;
   string to_wallet_id   = 2;
-  double amount         = 3;
+  uint64 amount         = 3; // whole currency units
   string msg_uuid     = 4;
 }
 

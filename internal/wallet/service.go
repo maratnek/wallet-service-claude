@@ -27,14 +27,15 @@ func NewService(r repo.Repository) *Service {
 }
 
 type CreateWalletInput struct {
-	OwnerID  string
-	Currency string
+	OwnerID        string
+	Currency       string
+	InitialBalance uint64
 }
 
 type TransferInput struct {
 	FromID string
 	ToID   string
-	Amount float64
+	Amount uint64
 }
 
 func (s *Service) CreateWallet(ctx context.Context, in CreateWalletInput) (repo.Wallet, error) {
@@ -42,6 +43,7 @@ func (s *Service) CreateWallet(ctx context.Context, in CreateWalletInput) (repo.
 		trace.WithAttributes(
 			attribute.String("wallet.owner_id", in.OwnerID),
 			attribute.String("wallet.currency", in.Currency),
+			attribute.Int64("wallet.initial_balance", int64(in.InitialBalance)),
 		),
 	)
 	defer span.End()
@@ -58,11 +60,10 @@ func (s *Service) CreateWallet(ctx context.Context, in CreateWalletInput) (repo.
 		span.SetStatus(codes.Error, err.Error())
 		return repo.Wallet{}, err
 	}
-
 	w := repo.Wallet{
 		ID:       generateID(in.OwnerID),
 		OwnerID:  in.OwnerID,
-		Balance:  0,
+		Balance:  in.InitialBalance,
 		Currency: in.Currency,
 	}
 
@@ -111,14 +112,14 @@ func (s *Service) Transfer(ctx context.Context, in TransferInput) (from, to repo
 		trace.WithAttributes(
 			attribute.String("transfer.from", in.FromID),
 			attribute.String("transfer.to", in.ToID),
-			attribute.Float64("transfer.amount", in.Amount),
+			attribute.Int64("transfer.amount", int64(in.Amount)),
 		),
 	)
 	defer span.End()
 
 	// Валидация
-	if in.Amount <= 0 {
-		err = fmt.Errorf("amount must be positive, got %.2f", in.Amount)
+	if in.Amount == 0 {
+		err = fmt.Errorf("amount must be positive, got %d", in.Amount)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return
@@ -147,7 +148,7 @@ func (s *Service) Transfer(ctx context.Context, in TransferInput) (from, to repo
 
 	// Проверяем баланс
 	if from.Balance < in.Amount {
-		err = fmt.Errorf("insufficient funds: have %.2f, need %.2f", from.Balance, in.Amount)
+		err = fmt.Errorf("insufficient funds: have %d, need %d", from.Balance, in.Amount)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return
@@ -169,8 +170,8 @@ func (s *Service) Transfer(ctx context.Context, in TransferInput) (from, to repo
 	}
 
 	span.SetAttributes(
-		attribute.Float64("transfer.from_balance_after", from.Balance),
-		attribute.Float64("transfer.to_balance_after", to.Balance),
+		attribute.Int64("transfer.from_balance_after", int64(from.Balance)),
+		attribute.Int64("transfer.to_balance_after", int64(to.Balance)),
 	)
 	span.SetStatus(codes.Ok, "transfer complete")
 	return

@@ -45,7 +45,7 @@ func TestGet_Success(t *testing.T) {
 		t.Errorf("owner: want alice, got %s", got.OwnerID)
 	}
 	if got.Balance != 250 {
-		t.Errorf("balance: want 250, got %.2f", got.Balance)
+		t.Errorf("balance: want 250, got %d", got.Balance)
 	}
 	if got.Currency != "EUR" {
 		t.Errorf("currency: want EUR, got %s", got.Currency)
@@ -74,7 +74,7 @@ func TestUpdate_Success(t *testing.T) {
 
 	got, _ := r.Get(ctx, "w-1")
 	if got.Balance != 999 {
-		t.Errorf("balance after update: want 999, got %.2f", got.Balance)
+		t.Errorf("balance after update: want 999, got %d", got.Balance)
 	}
 }
 
@@ -99,7 +99,7 @@ func TestConcurrentCreate(t *testing.T) {
 			_ = r.Create(ctx, repo.Wallet{
 				ID:      fmt.Sprintf("w-%d", n),
 				OwnerID: fmt.Sprintf("user-%d", n),
-				Balance: float64(n * 10),
+				Balance: uint64(n * 10),
 			})
 			done <- struct{}{}
 		}(i)
